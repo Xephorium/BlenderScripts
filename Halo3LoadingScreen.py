@@ -164,22 +164,22 @@ def create_animated_materials(slice):
         variable.targets[0].data_path = "[\"{0}\"]".format(CUBE_BRIGHTNESS)
         
         
-def get_height_factors(new_particles, source_particle):
+def get_height_factors(slice, source_emitter):
     raw_height_factors = []
     normalized_height_factors = []
     max_height_factor = 0
     
     # Calculate Raw Height Factors
-    for particle in new_particles:
-        x_distance = abs(particle.location.x - source_particle.location.x)
-        y_distance = abs(particle.location.y - source_particle.location.y)
+    for particle in slice:
+        x_distance = abs(particle.location.x - source_emitter.location.x)
+        y_distance = abs(particle.location.y - source_emitter.location.y)
         if x_distance > y_distance:
             width = x_distance
         else:
             width = y_distance
         if width == 0:
             width = .001
-        factor = abs(particle.location.z - source_particle.location.z) / width
+        factor = abs(particle.location.z - source_emitter.location.z) / width
         raw_height_factors.append(factor)
         if factor > max_height_factor:
             max_height_factor = factor
@@ -195,12 +195,12 @@ def get_height_factors(new_particles, source_particle):
     return normalized_height_factors
 
 
-def give_start_frame_horizontal_bias(new_particles, source_particle):
+def give_start_frame_horizontal_bias(slice, source_emitter):
     bpy.context.scene.frame_set(START_FRAME)
-    height_factors = get_height_factors(new_particles, source_particle)
+    height_factors = get_height_factors(slice, source_emitter)
     
     # Update Start Position
-    for index, particle in enumerate(new_particles):
+    for index, particle in enumerate(slice):
         factor = height_factors[index]
         if factor != 0:
             particle.location.x = particle.location.x * (1 + (5 * factor))
@@ -209,8 +209,8 @@ def give_start_frame_horizontal_bias(new_particles, source_particle):
             particle.keyframe_insert("location")
 
 
-def randomize_flight_pattern(new_particles):
-    for particle in new_particles:
+def randomize_flight_pattern(slice):
+    for particle in slice:
         
         # Determine Flight Variation
         x_variation = randrange(-ASSEMBLY_FLIGHT_VARIATION, ASSEMBLY_FLIGHT_VARIATION)
@@ -233,8 +233,8 @@ def randomize_flight_pattern(new_particles):
         particle.keyframe_insert("location")
         
 
-def randomize_keyframe_delay(new_particles):
-    for particle in new_particles:
+def randomize_keyframe_delay(slice):
+    for particle in slice:
         curves = particle.animation_data.action.fcurves
         
         # Calculate Delay
@@ -242,7 +242,10 @@ def randomize_keyframe_delay(new_particles):
         
         # For Each Location Keyframe
         for curve in curves:
-            if curve.data_path == "location" or curve.data_path == "[\"{0}\"]".format(MATERIAL_VARIABLE):
+            if curve.data_path == "location" \
+                or curve.data_path == "[\"{0}\"]".format(ORB_VISIBILITY) \
+                or curve.data_path == "[\"{0}\"]".format(CUBE_VISIBILITY) \
+                or curve.data_path == "[\"{0}\"]".format(CUBE_BRIGHTNESS):
                 for keyframe_point in curve.keyframe_points:
                     
                     # Advance By Offset
@@ -250,16 +253,16 @@ def randomize_keyframe_delay(new_particles):
                     keyframe_point.handle_left.x = keyframe_point.handle_left.x + delay
                     keyframe_point.handle_right.x = keyframe_point.handle_right.x + delay
                     
-def ease_keyframes(new_particles):
-    for particle in new_particles:
+def ease_keyframes(slice):
+    for particle in slice:
         for curve in particle.animation_data.action.fcurves:
             if curve.data_path == "location":
                 for keyframe_point in curve.keyframe_points:
                     keyframe_point.interpolation = "BEZIER"
     
 
-def remove_easing_on_start_frame(new_particles):
-    for particle in new_particles:
+def remove_easing_on_start_frame(slice):
+    for particle in slice:
         curves = particle.animation_data.action.fcurves
         for curve in curves:
             if curve.data_path == "location":
@@ -286,14 +289,14 @@ def main():
     # Configure New Slice
     create_basic_motion_keyframes(new_slice_particles, source_emitter)
     create_animated_materials(new_slice_particles)
-    #give_start_frame_horizontal_bias(new_particles, source_particle)
-    #randomize_flight_pattern(new_particles)
-    #randomize_keyframe_delay(new_particles)
-    #ease_keyframes(new_particles)
-    #remove_easing_on_start_frame(new_particles)
+    give_start_frame_horizontal_bias(new_slice_particles, source_emitter)
+    randomize_flight_pattern(new_slice_particles)
+    randomize_keyframe_delay(new_slice_particles)
+    ease_keyframes(new_slice_particles)
+    remove_easing_on_start_frame(new_slice_particles)
     
     # Return to Start Frame
-    #bpy.context.scene.frame_set(START_FRAME)
+    bpy.context.scene.frame_set(START_FRAME)
     
 
 if __name__ == '__main__':
