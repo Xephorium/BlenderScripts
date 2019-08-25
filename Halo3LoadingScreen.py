@@ -1,4 +1,6 @@
 import bpy
+import math
+import mathutils
 from random import randrange
 
 # File:             GenerateHaloRing.py
@@ -21,10 +23,6 @@ from random import randrange
 
 EMITTER_NAME = "Emitter"
 
-ORB_VISIBILITY = "Orb Visibility"
-CUBE_VISIBILITY = "Cube Visibility"
-CUBE_BRIGHTNESS = "Cube Brightness"
-
 START_FRAME = 0
 ASSEMBLY_ANIMATION_LENGTH = 80 # Number of Frames
 ASSEMBLY_RANDOM_VARIATION = 120 # Number of Frames
@@ -32,8 +30,17 @@ ASSEMBLY_TRAVEL_DISTANCE = 25 # Multiple of Initial Distance
 ASSEMBLY_START_VARIATION = 2 # Distance in Blender Units
 ASSEMBLY_FLIGHT_VARIATION = 4 # Must be Even
 
+ORB_VISIBILITY = "Orb Visibility"
+CUBE_VISIBILITY = "Cube Visibility"
+CUBE_BRIGHTNESS = "Cube Brightness"
+ORB_MATERIAL_SLOT_NAME = "Orb Material"
+CUBE_MATERIAL_SLOT_NAME = "Cube Material"
 CUBE_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frames
 CUBE_BRIGHTNESS_TRANSITION_LENGTH = 120 # Number of Frames
+
+RING_SLICES = 256
+RING_SAMPLES = 3 # Number of Slices to Generate
+SLICE_ANGLE = 360 / RING_SLICES
 
 
 def duplicate_particle(particle):
@@ -101,12 +108,12 @@ def create_animated_materials(slice):
         particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
         
         # Duplicate Material For Object (Necessary to Create Material Driver)
-        newMaterial = particle.material_slots[1].material.copy()
-        particle.material_slots[1].material = newMaterial
+        newMaterial = particle.material_slots[ORB_MATERIAL_SLOT_NAME].material.copy()
+        particle.material_slots[ORB_MATERIAL_SLOT_NAME].material = newMaterial
         
         # Add Driver For Material & Connect to Property
         driver_path = 'nodes["{0}"].outputs[0].default_value'.format(ORB_VISIBILITY)
-        driver = particle.material_slots[1].material.node_tree.driver_add(driver_path)
+        driver = particle.material_slots[newMaterial.name].material.node_tree.driver_add(driver_path)
         driver.driver.expression = "var"
         variable = driver.driver.variables.new()
         variable.type = "SINGLE_PROP"
@@ -126,12 +133,12 @@ def create_animated_materials(slice):
         particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_VISIBILITY))
         
         # Duplicate Material For Object (Necessary to Create Material Driver)
-        newMaterial = particle.material_slots[0].material.copy()
-        particle.material_slots[0].material = newMaterial
+        newMaterial = particle.material_slots[CUBE_MATERIAL_SLOT_NAME].material.copy()
+        particle.material_slots[CUBE_MATERIAL_SLOT_NAME].material = newMaterial
         
         # Add Driver For Material & Connect to Property
         driver_path = 'nodes["{0}"].outputs[0].default_value'.format(CUBE_VISIBILITY)
-        driver = particle.material_slots[0].material.node_tree.driver_add(driver_path)
+        driver = particle.material_slots[newMaterial.name].material.node_tree.driver_add(driver_path)
         driver.driver.expression = "var"
         variable = driver.driver.variables.new()
         variable.type = "SINGLE_PROP"
@@ -151,12 +158,13 @@ def create_animated_materials(slice):
         particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_BRIGHTNESS))
         
         # Duplicate Material For Object (Necessary to Create Material Driver)
-        newMaterial = particle.material_slots[0].material.copy()
-        particle.material_slots[0].material = newMaterial
+        old_material_name = newMaterial.name
+        newMaterial = particle.material_slots[old_material_name].material.copy()
+        particle.material_slots[old_material_name].material = newMaterial
         
         # Add Driver For Material & Connect to Property
         driver_path = 'nodes["{0}"].outputs[0].default_value'.format(CUBE_BRIGHTNESS)
-        driver = particle.material_slots[0].material.node_tree.driver_add(driver_path)
+        driver = particle.material_slots[newMaterial.name].material.node_tree.driver_add(driver_path)
         driver.driver.expression = "var"
         variable = driver.driver.variables.new()
         variable.type = "SINGLE_PROP"
@@ -269,6 +277,48 @@ def remove_easing_on_start_frame(slice):
                 curve.keyframe_points[0].handle_right = curve.keyframe_points[0].co
 
 
+def duplicate_slice(slice):
+    
+    # Create Duplicate Empty
+    empty = bpy.data.objects.new("ParticleEmpty.{:03d}".format(0), None)
+    bpy.context.collection.objects.link(empty)
+    
+    # Parent Empty to Particles
+    for particle in slice:
+        
+        # Create Duplicate Particle
+        new_particle = bpy.data.objects.new(
+            name=(particle.name+".{:03d}").format(0),
+            object_data=particle.data.copy()
+        )
+        bpy.context.collection.objects.link(new_particle)
+        
+        # Copy Animations
+        action_copy = particle.animation_data.action.copy()
+        new_particle.animation_data_create()
+        new_particle.animation_data.action = action_copy
+        
+        # Set Particle Parent
+        new_particle.parent = empty
+        new_particle.matrix_parent_inverse = empty.matrix_world.inverted()
+    
+    return empty
+
+
+def rotate_slice_by_angle(empty, angle_vector):
+    euler = mathutils.Euler(angle_vector, 'XYZ')
+
+    if empty.rotation_mode == "QUATERNION":
+        empty.rotation_quaternion = euler.to_quaternion()
+    elif empty.rotation_mode == "AXIS_ANGLE":
+        quaternion = euler.to_quaternion()
+        empty.rotation_axis_angle[0]  = quaternion.angle
+        empty.rotation_axis_angle[1:] = quaternion.axis
+    else:
+        empty.rotation_euler = euler if euler.order ==empty.rotation_mode else(
+            euler.to_quaternion().to_euler(empty.rotation_mode))
+
+
 # Main Program
 def main():
    
@@ -281,19 +331,45 @@ def main():
         if o.name != EMITTER_NAME:
             source_particles.append(o)
     
-    # Create New Slice
-    new_slice_particles = []
-    for particle in source_particles:
-        new_slice_particles.append(duplicate_particle(particle))
+    # For Each Sample (Number of Slices to Generate)
+    for sample in range(0, RING_SAMPLES):
     
-    # Configure New Slice
-    create_basic_motion_keyframes(new_slice_particles, source_emitter)
-    create_animated_materials(new_slice_particles)
-    give_start_frame_horizontal_bias(new_slice_particles, source_emitter)
-    randomize_flight_pattern(new_slice_particles)
-    randomize_keyframe_delay(new_slice_particles)
-    ease_keyframes(new_slice_particles)
-    remove_easing_on_start_frame(new_slice_particles)
+        # Create New Slice
+        new_slice_particles = []
+        for particle in source_particles:
+            new_slice_particles.append(duplicate_particle(particle))
+        
+        # Configure New Slice
+        create_basic_motion_keyframes(new_slice_particles, source_emitter)
+        create_animated_materials(new_slice_particles)
+        give_start_frame_horizontal_bias(new_slice_particles, source_emitter)
+        randomize_flight_pattern(new_slice_particles)
+        randomize_keyframe_delay(new_slice_particles)
+        ease_keyframes(new_slice_particles)
+        remove_easing_on_start_frame(new_slice_particles)
+        
+        # Create Slice Empty
+        empty = bpy.data.objects.new("ParticleEmpty.{:03d}".format(0), None)
+        bpy.context.collection.objects.link(empty)
+        
+        # Parent Empty to Particles
+        for particle in new_slice_particles:
+            particle.parent = empty
+            particle.matrix_parent_inverse = empty.matrix_world.inverted()
+        
+        # Determine Rotation Angle
+        angle = SLICE_ANGLE * sample
+        
+        # Rotate Empty
+        if sample == 0:
+            print("Do Nothing - Slice In Position")
+        elif sample == (RING_SLICES / 2) - 1:
+            rotate_slice_by_angle(empty, (0.0, 0.0, math.radians(180)))
+        else:
+            duplicate_slice_empty = duplicate_slice(new_slice_particles)
+            rotate_slice_by_angle(empty, (0.0, 0.0, math.radians(angle)))
+            rotate_slice_by_angle(duplicate_slice_empty, (math.radians(180), 0.0, -math.radians(angle)))
+            
     
     # Return to Start Frame
     bpy.context.scene.frame_set(START_FRAME)
