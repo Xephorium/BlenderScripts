@@ -2,27 +2,32 @@ import bpy
 from random import randrange
 
 # File:             GenerateParticleAssembly.py
-# Date:             08.23.2019
+# Date:             08.25.2019
 # Version:          Blender 2.8
 #
 # This script creates a "particle" object for each vertex of an "emitter" object and
-# generates randomized location keyframes that move them into position. Designed with
-# The Halo 3 loading screen in mind. :)
+# animates the particles such that the emitter is randomly assembled. Written as a proof
+# of concept for a full HD recreation of Halo 3's loading screen, the script also
+# navigates around Blender's arcane API to allow for keyframed material variables. :)
 #
 # Instructions:
 #   1. Model emitter object w/ vertices at desired particle locations.
 #   2. Model particle object.
 #   3. Name "Particle" and "Emitter" objects accordingly.
-#   4. (Optional) Select a collection in the Outliner view for resulting animated objects.
-#   5. Run script!
+#   4. Give particle object a material that includes a single "Value" node. Make sure the node is named
+#      according to the MATERIAL_VARIABLE variable below.
+#   5. (Optional) Select a collection in the Outliner view for resulting animated objects.
+#   6. Run script!
 
 
 PARTICLE_NAME = "Particle"
 EMITTER_NAME = "Emitter"
 
+MATERIAL_VARIABLE = "visibility"
+
 START_FRAME = 0
-ASSEMBLY_ANIMATION_LENGTH = 40 # Number of Frames
-ASSEMBLY_RANDOM_VARIATION = 40 # Number of Frames
+ASSEMBLY_ANIMATION_LENGTH = 80 # Number of Frames
+ASSEMBLY_RANDOM_VARIATION = 120 # Number of Frames
 ASSEMBLY_TRAVEL_DISTANCE = 25 # Multiple of Initial Distance
 ASSEMBLY_START_VARIATION = 2 # Distance in Blender Units
 ASSEMBLY_FLIGHT_VARIATION = 4 # Must be Even
@@ -65,6 +70,33 @@ def create_basic_motion_keyframes(new_particles, source_particle):
         particle.location.y = y_pos
         particle.location.z = z_pos
         particle.keyframe_insert("location")
+        
+
+def create_animated_material_input(new_particles):
+    for particle in new_particles:
+        
+        # Set Initial Material Property Keyframe
+        bpy.context.scene.frame_set(START_FRAME)
+        particle[MATERIAL_VARIABLE] = 0.0
+        particle.keyframe_insert(data_path="[\"{0}\"]".format(MATERIAL_VARIABLE))
+        
+        # Set Final Material Property Keyframe
+        bpy.context.scene.frame_set(START_FRAME + (ASSEMBLY_ANIMATION_LENGTH / 10))
+        particle[MATERIAL_VARIABLE] = 1.0
+        particle.keyframe_insert(data_path="[\"{0}\"]".format(MATERIAL_VARIABLE))
+        
+        # Duplicate Material For Object (Necessary to Create Material Driver)
+        newMaterial = particle.material_slots[0].material.copy()
+        particle.material_slots[0].material = newMaterial
+        
+        # Add Driver For Material & Connect to Property
+        driver_path = 'nodes["{0}"].outputs[0].default_value'.format(MATERIAL_VARIABLE)
+        driver = particle.material_slots[0].material.node_tree.driver_add(driver_path)
+        driver.driver.expression = "var"
+        variable = driver.driver.variables.new()
+        variable.type = "SINGLE_PROP"
+        variable.targets[0].id = particle
+        variable.targets[0].data_path = "[\"{0}\"]".format(MATERIAL_VARIABLE)
         
         
 def get_height_factors(new_particles, source_particle):
@@ -145,7 +177,7 @@ def randomize_keyframe_delay(new_particles):
         
         # For Each Location Keyframe
         for curve in curves:
-            if curve.data_path == "location":
+            if curve.data_path == "location" or curve.data_path == "[\"{0}\"]".format(MATERIAL_VARIABLE):
                 for keyframe_point in curve.keyframe_points:
                     
                     # Advance By Offset
@@ -183,6 +215,7 @@ def main():
     
     # Animate New Particles
     create_basic_motion_keyframes(new_particles, source_particle)
+    create_animated_material_input(new_particles)
     give_start_frame_horizontal_bias(new_particles, source_particle)
     randomize_flight_pattern(new_particles)
     randomize_keyframe_delay(new_particles)
