@@ -1,7 +1,7 @@
 import bpy
 from random import randrange
 
-# File:             GenerateParticleAssembly.py
+# File:             AddParticlesToEmitter.py
 # Date:             08.25.2019
 # Version:          Blender 2.8
 #
