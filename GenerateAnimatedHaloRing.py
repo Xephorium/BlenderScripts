@@ -13,6 +13,8 @@ from random import randrange
 # final result is a highly configurable, spectacular show of particulate assembly
 # to make Bungo proud. Run with care; this one's a computational juggernaut.
 #
+# --- Instructions ---
+#
 # Create Ring Slice
 #   1. Model an emitter object named "Emitter" representing a cross-sectional
 #      slice of the final ring.
