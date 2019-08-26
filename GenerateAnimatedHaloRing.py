@@ -39,6 +39,9 @@ from random import randrange
 #   4. (Optional) "Window" > "Toggle System Console" to view script progress.
 #   5. (Optional) Select collection in Outliner view to hold generated objects.
 #   6. Run script!
+#
+# Were you blinded by its majesty?
+#
 
 
 EMITTER_NAME = "Emitter"
