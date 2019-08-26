@@ -22,13 +22,15 @@ from random import randrange
 
 
 EMITTER_NAME = "Emitter"
+ASSEMBLY_ROTATION_EMPTY = "Animation Progress Marker"
 
-START_FRAME = 0
-ASSEMBLY_ANIMATION_LENGTH = 80 # Number of Frames
-ASSEMBLY_RANDOM_VARIATION = 120 # Number of Frames
-ASSEMBLY_TRAVEL_DISTANCE = 25 # Multiple of Initial Distance
+START_FRAME = 70
+END_FRAME = 4090
+ASSEMBLY_ANIMATION_LENGTH = 120 # Number of Frames
+ASSEMBLY_RANDOM_VARIATION = 40 # Number of Frames
+ASSEMBLY_TRAVEL_DISTANCE = 50 # Distance in Blender Units
 ASSEMBLY_START_VARIATION = 2 # Distance in Blender Units
-ASSEMBLY_FLIGHT_VARIATION = 4 # Must be Even
+ASSEMBLY_FLIGHT_VARIATION = 2 # Distance in Blender Units
 
 ORB_VISIBILITY = "Orb Visibility"
 CUBE_VISIBILITY = "Cube Visibility"
@@ -38,9 +40,10 @@ CUBE_MATERIAL_SLOT_NAME = "Cube Material"
 CUBE_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frames
 CUBE_BRIGHTNESS_TRANSITION_LENGTH = 120 # Number of Frames
 
-RING_SLICES = 256
-RING_SAMPLES = 3 # Number of Slices to Generate
+RING_SLICES = 4096
+RING_SAMPLES = 10 # Number of Slices to Generate (Max of (RING_SLICES / 2 - 1))
 SLICE_ANGLE = 360 / RING_SLICES
+STEP_LENGTH = END_FRAME / (RING_SLICES / 2) # Number of Frames
 
 
 def duplicate_particle(particle):
@@ -69,13 +72,22 @@ def create_basic_motion_keyframes(slice, source_emitter):
     
     # Set Start Location Keyframe
     bpy.context.scene.frame_set(START_FRAME)
+    random_range = int(ASSEMBLY_START_VARIATION * 30)
     for particle in slice:
-        x_variation = randrange(-ASSEMBLY_START_VARIATION, ASSEMBLY_START_VARIATION)
-        y_variation = randrange(-ASSEMBLY_START_VARIATION, ASSEMBLY_START_VARIATION)
-        z_variation = randrange(-ASSEMBLY_START_VARIATION, ASSEMBLY_START_VARIATION)
-        x_pos = (particle.location.x - source_emitter.location.x) * ASSEMBLY_TRAVEL_DISTANCE + x_variation
-        y_pos = (particle.location.y - source_emitter.location.y) * ASSEMBLY_TRAVEL_DISTANCE + y_variation
-        z_pos = (particle.location.z - source_emitter.location.z) * ASSEMBLY_TRAVEL_DISTANCE + z_variation
+        x_variation = 0
+        y_variation = 0
+        z_variation = 0
+        if random_range != 0:
+            x_variation = randrange(-random_range, random_range) / 30
+            y_variation = randrange(-random_range, random_range) / 30
+            z_variation = randrange(-random_range, random_range) / 30
+        x_pos_sign = (particle.location.x - source_emitter.location.x) / abs(particle.location.x - source_emitter.location.x)
+        y_pos_sign = (particle.location.y - source_emitter.location.y) / abs(particle.location.y - source_emitter.location.y)
+        z_pos_sign = (particle.location.z - source_emitter.location.z) / abs(particle.location.z - source_emitter.location.z)
+        x_pos = ((particle.location.x - source_emitter.location.x) * ASSEMBLY_TRAVEL_DISTANCE) + source_emitter.location.x + x_variation
+        y_pos = ((particle.location.y - source_emitter.location.y) * ASSEMBLY_TRAVEL_DISTANCE) + source_emitter.location.y + y_variation
+        z_pos = ((particle.location.z - source_emitter.location.z) * ASSEMBLY_TRAVEL_DISTANCE/6) + source_emitter.location.z + z_variation
+        print(x_pos)
         particle.location.x = x_pos
         particle.location.y = y_pos
         particle.location.z = z_pos
@@ -170,60 +182,44 @@ def create_animated_materials(slice):
         variable.type = "SINGLE_PROP"
         variable.targets[0].id = particle
         variable.targets[0].data_path = "[\"{0}\"]".format(CUBE_BRIGHTNESS)
-        
-        
-def get_height_factors(slice, source_emitter):
-    raw_height_factors = []
-    normalized_height_factors = []
-    max_height_factor = 0
-    
-    # Calculate Raw Height Factors
-    for particle in slice:
-        x_distance = abs(particle.location.x - source_emitter.location.x)
-        y_distance = abs(particle.location.y - source_emitter.location.y)
-        if x_distance > y_distance:
-            width = x_distance
-        else:
-            width = y_distance
-        if width == 0:
-            width = .001
-        factor = abs(particle.location.z - source_emitter.location.z) / width
-        raw_height_factors.append(factor)
-        if factor > max_height_factor:
-            max_height_factor = factor
-        
-    # Normalize Height Factors
-    for factor in raw_height_factors:
-        if factor > 0:
-            new_factor = factor/max_height_factor
-        else:
-            new_factor = 0
-        normalized_height_factors.append(new_factor)
-    
-    return normalized_height_factors
 
 
 def give_start_frame_horizontal_bias(slice, source_emitter):
-    bpy.context.scene.frame_set(START_FRAME)
-    height_factors = get_height_factors(slice, source_emitter)
     
-    # Update Start Position
+    # Cache Max Travel Distances
+    bpy.context.scene.frame_set(START_FRAME + ASSEMBLY_ANIMATION_LENGTH)
+    max_travel_distances = []
+    for particle in slice:
+        max_travel_distances.append((
+            .9 * (abs(particle.location.x - source_emitter.location.x) * ASSEMBLY_TRAVEL_DISTANCE),
+            .9 * (abs(particle.location.y - source_emitter.location.y) * ASSEMBLY_TRAVEL_DISTANCE)))
+    
+    # Bias Start Position
+    bpy.context.scene.frame_set(START_FRAME)
     for index, particle in enumerate(slice):
-        factor = height_factors[index]
-        if factor != 0:
-            particle.location.x = particle.location.x * (1 + (5 * factor))
-            particle.location.y = particle.location.y * (1 + (5 * factor))
-            particle.location.z = particle.location.z * .4
-            particle.keyframe_insert("location")
+        particle.location.z = particle.location.z * .5
+        x_distance = particle.location.x - source_emitter.location.x
+        if abs(x_distance) < max_travel_distances[index][0]:
+            particle.location.x = source_emitter.location.x + (x_distance * ( 2 + (x_distance / max_travel_distances[index][0])))
+        y_distance = particle.location.y - source_emitter.location.y
+        if abs(y_distance) < max_travel_distances[index][1]:
+            particle.location.y = source_emitter.location.y + (y_distance * ( 2 + (x_distance / max_travel_distances[index][1])))
+        
+        particle.keyframe_insert("location")
 
 
 def randomize_flight_pattern(slice):
     for particle in slice:
         
         # Determine Flight Variation
-        x_variation = randrange(-ASSEMBLY_FLIGHT_VARIATION, ASSEMBLY_FLIGHT_VARIATION)
-        y_variation = randrange(-ASSEMBLY_FLIGHT_VARIATION, ASSEMBLY_FLIGHT_VARIATION)
-        z_variation = randrange(-(ASSEMBLY_FLIGHT_VARIATION/2), (ASSEMBLY_FLIGHT_VARIATION/2))
+        random_range = int(ASSEMBLY_FLIGHT_VARIATION * 30)
+        x_variation = 0
+        y_variation = 0
+        z_variation = 0
+        if random_range != 0:
+            x_variation = randrange(-random_range, random_range) / 30
+            y_variation = randrange(-random_range, random_range) / 30
+            z_variation = randrange(-int(random_range/2), int(random_range/2)) / 30
         
         # Determine Variation Frame
         range = .2
@@ -248,7 +244,7 @@ def randomize_keyframe_delay(slice):
         # Calculate Delay
         delay = randrange(0, ASSEMBLY_RANDOM_VARIATION)
         
-        # For Each Location Keyframe
+        # For Each Location or Material Keyframe
         for curve in curves:
             if curve.data_path == "location" \
                 or curve.data_path == "[\"{0}\"]".format(ORB_VISIBILITY) \
@@ -317,6 +313,24 @@ def rotate_slice_by_angle(empty, angle_vector):
     else:
         empty.rotation_euler = euler if euler.order ==empty.rotation_mode else(
             euler.to_quaternion().to_euler(empty.rotation_mode))
+            
+
+def delay_animations(slice, delay):
+    for particle in slice:
+        curves = particle.animation_data.action.fcurves
+        
+        # For Each Location or Material Keyframe
+        for curve in curves:
+            if curve.data_path == "location" \
+                or curve.data_path == "[\"{0}\"]".format(ORB_VISIBILITY) \
+                or curve.data_path == "[\"{0}\"]".format(CUBE_VISIBILITY) \
+                or curve.data_path == "[\"{0}\"]".format(CUBE_BRIGHTNESS):
+                for keyframe_point in curve.keyframe_points:
+                    
+                    # Advance By Offset
+                    keyframe_point.co.x = keyframe_point.co.x + delay
+                    keyframe_point.handle_left.x = keyframe_point.handle_left.x + delay
+                    keyframe_point.handle_right.x = keyframe_point.handle_right.x + delay
 
 
 # Main Program
@@ -330,6 +344,15 @@ def main():
     for o in bpy.context.selected_objects:
         if o.name != EMITTER_NAME:
             source_particles.append(o)
+            
+    # Get Assembly Rotation Curve
+    assembly_curve = bpy.data.objects[ASSEMBLY_ROTATION_EMPTY].animation_data.action.fcurves[0]
+            
+    # Calculate Slice Animation Offsets
+    step_offsets = []
+    for sample in range(0, RING_SAMPLES):
+        angle = math.degrees(assembly_curve.evaluate(sample * STEP_LENGTH))
+        step_offsets.append((angle / 180) * END_FRAME)
     
     # For Each Sample (Number of Slices to Generate)
     for sample in range(0, RING_SAMPLES):
@@ -342,9 +365,10 @@ def main():
         # Configure New Slice
         create_basic_motion_keyframes(new_slice_particles, source_emitter)
         create_animated_materials(new_slice_particles)
-        give_start_frame_horizontal_bias(new_slice_particles, source_emitter)
+        #give_start_frame_horizontal_bias(new_slice_particles, source_emitter)
         randomize_flight_pattern(new_slice_particles)
         randomize_keyframe_delay(new_slice_particles)
+        delay_animations(new_slice_particles, step_offsets[sample])
         ease_keyframes(new_slice_particles)
         remove_easing_on_start_frame(new_slice_particles)
         
@@ -370,6 +394,8 @@ def main():
             rotate_slice_by_angle(empty, (0.0, 0.0, math.radians(angle)))
             rotate_slice_by_angle(duplicate_slice_empty, (math.radians(180), 0.0, -math.radians(angle)))
             
+        # Print Update
+        print("Slice {0} of {1} processed.".format(sample + 1, RING_SAMPLES))
     
     # Return to Start Frame
     bpy.context.scene.frame_set(START_FRAME)

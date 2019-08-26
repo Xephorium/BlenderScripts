@@ -18,7 +18,7 @@ PARTICLE_NAME = "Particle"
 EMITTER_NAME = "Emitter"
 
 
-def create_particle_at_vertex(source_particle, vertex):
+def create_particle_at_vertex(source_particle, source_emitter, vertex):
     
     # Create Particle Object
     new_particle = bpy.data.objects.new(
@@ -27,7 +27,9 @@ def create_particle_at_vertex(source_particle, vertex):
     )
         
     # Position Object At Vertex
-    new_particle.location = vertex.co
+    new_particle.location.x = source_emitter.location.x + vertex.co.x
+    new_particle.location.y = source_emitter.location.y + vertex.co.y
+    new_particle.location.z = source_emitter.location.z + vertex.co.z
     
     # Add Object to Scene
     bpy.context.collection.objects.link(new_particle)
@@ -45,7 +47,7 @@ def main():
     
     # Create Particles
     for vertex in source_emitter.data.vertices:
-        new_particles.append(create_particle_at_vertex(source_particle, vertex))
+        new_particles.append(create_particle_at_vertex(source_particle, source_emitter, vertex))
     
 
 if __name__ == '__main__':
