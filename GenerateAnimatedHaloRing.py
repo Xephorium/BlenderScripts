@@ -3,7 +3,7 @@ import math
 import mathutils
 from random import randrange
 
-# File:             GenerateHaloRing.py
+# File:             GenerateAnimatedHaloRing.py
 # Date:             08.26.2019
 # Version:          Blender 2.8
 #
