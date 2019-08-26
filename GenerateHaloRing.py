@@ -4,21 +4,39 @@ import mathutils
 from random import randrange
 
 # File:             GenerateHaloRing.py
-# Date:             08.25.2019
+# Date:             08.26.2019
 # Version:          Blender 2.8
 #
-# This script duplicates one slice of a Halo ring consisting of many individual cube objects, keyframes
-# location and material animations for each object, parents the new objects to an empty, and rotates the empty into
-# position. Run with care; this one's a computational behemoth.
+# This script duplicates one slice of a Halo ring consisting of many individual
+# cube objects, keyframes location and material animations for each object,
+# parents the new objects to an empty, and rotates the empty into position. The
+# final result is a highly configurable, spectacular show of particulate assembly
+# to make Bungo proud. Run with care; this one's a computational juggernaut.
 #
-# Instructions (Out of date):
-#   1. Model emitter object w/ vertices at desired particle locations.
-#   2. Model particle object.
-#   3. Name "Particle" and "Emitter" objects accordingly.
-#   4. Give particle object a material that includes a single "Value" node. Make sure the node is named
-#      according to the MATERIAL_VARIABLE variable below.
-#   5. (Optional) Select a collection in the Outliner view for resulting animated objects.
-#   6. Run script!
+# Create Ring Slice
+#   1. Model an emitter object representing a cross-sectional slice of the ring.
+#   2. Move the emitter into position at the final ring radius.
+#   3. Model a particle object representing each piece to be assembled.
+#      > Geometry should include its final shape and a smaller sphere "orb".
+#      > Give cube a material called "Cube Material" with two "Value" nodes
+#        named "Cube Visibility" and "Cube Brightness".
+#      > Give orb a material called "Orb Material" with a "Value" node named
+#        "Orb Visibility".
+#   4. Run sibling script "AddParticlesToEmitter.py" to generate a particle
+#      at each vertex of the emitter.
+#   5. Adjust slice geometry as necessary to fit within the radial area of
+#      one slice.
+#
+# Generate Ring Assembly Animation
+#   1. Create Empty at origin called "Animation Progress Marker".
+#      > Keyframe empty to rotate between 0 degrees at START_FRAME and 180
+#        degrees at END_FRAME on the z axis. Adjust assembly curve as desired.
+#      > Delete all other keyframes. (Z Rotation should be the only animation.)
+#   1. Select all particles of the source ring slice.
+#   2. Adjust parameters to match final ring dimensions and animation length.
+#   3. (Optional) "Window" > "Toggle System Console" to view script progress.
+#   4. (Optional) Select collection in Outliner view to hold generated objects.
+#   3. Run script!
 
 
 EMITTER_NAME = "Emitter"
