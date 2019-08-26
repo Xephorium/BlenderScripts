@@ -26,22 +26,24 @@ ASSEMBLY_ROTATION_EMPTY = "Animation Progress Marker"
 
 START_FRAME = 70
 END_FRAME = 4090
-ASSEMBLY_ANIMATION_LENGTH = 120 # Number of Frames
+ASSEMBLY_ANIMATION_LENGTH = 100 # Number of Frames
 ASSEMBLY_RANDOM_VARIATION = 40 # Number of Frames
-ASSEMBLY_TRAVEL_DISTANCE = 50 # Distance in Blender Units
+ASSEMBLY_TRAVEL_DISTANCE = 30 # Distance in Blender Units
 ASSEMBLY_START_VARIATION = 2 # Distance in Blender Units
-ASSEMBLY_FLIGHT_VARIATION = 2 # Distance in Blender Units
+ASSEMBLY_FLIGHT_VARIATION = 1 # Distance in Blender Units
 
 ORB_VISIBILITY = "Orb Visibility"
 CUBE_VISIBILITY = "Cube Visibility"
 CUBE_BRIGHTNESS = "Cube Brightness"
 ORB_MATERIAL_SLOT_NAME = "Orb Material"
+ORB_VISIBILITY_VARIATION = 50 # Number of Frames
+ORB_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frame
 CUBE_MATERIAL_SLOT_NAME = "Cube Material"
 CUBE_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frames
 CUBE_BRIGHTNESS_TRANSITION_LENGTH = 120 # Number of Frames
 
 RING_SLICES = 4096
-RING_SAMPLES = 10 # Number of Slices to Generate (Max of (RING_SLICES / 2 - 1))
+RING_SAMPLES = 1 # Number of Slices to Generate (Max of (RING_SLICES / 2 - 1))
 SLICE_ANGLE = 360 / RING_SLICES
 STEP_LENGTH = END_FRAME / (RING_SLICES / 2) # Number of Frames
 
@@ -86,7 +88,7 @@ def create_basic_motion_keyframes(slice, source_emitter):
         z_pos_sign = (particle.location.z - source_emitter.location.z) / abs(particle.location.z - source_emitter.location.z)
         x_pos = ((particle.location.x - source_emitter.location.x) * ASSEMBLY_TRAVEL_DISTANCE) + source_emitter.location.x + x_variation
         y_pos = ((particle.location.y - source_emitter.location.y) * ASSEMBLY_TRAVEL_DISTANCE) + source_emitter.location.y + y_variation
-        z_pos = ((particle.location.z - source_emitter.location.z) * ASSEMBLY_TRAVEL_DISTANCE/6) + source_emitter.location.z + z_variation
+        z_pos = ((particle.location.z - source_emitter.location.z) * ASSEMBLY_TRAVEL_DISTANCE/20) + source_emitter.location.z + z_variation
         particle.location.x = x_pos
         particle.location.y = y_pos
         particle.location.z = z_pos
@@ -98,13 +100,16 @@ def create_animated_materials(slice):
         
         ### Orb Visibility ###
         
+        # Generate Orb Visibility Offset
+        orb_visibility_offset = randrange(0, ORB_VISIBILITY_VARIATION + 1)
+        
         # Set First Orb Visibility Keyframe
-        bpy.context.scene.frame_set(START_FRAME)
+        bpy.context.scene.frame_set(START_FRAME + orb_visibility_offset)
         particle[ORB_VISIBILITY] = 0.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
         
         # Set Second Orb Visibility Keyframe
-        bpy.context.scene.frame_set(START_FRAME + (ASSEMBLY_ANIMATION_LENGTH / 10))
+        bpy.context.scene.frame_set(START_FRAME + orb_visibility_offset + (ASSEMBLY_ANIMATION_LENGTH / 10))
         particle[ORB_VISIBILITY] = 1.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
         
