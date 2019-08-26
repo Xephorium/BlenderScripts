@@ -87,7 +87,6 @@ def create_basic_motion_keyframes(slice, source_emitter):
         x_pos = ((particle.location.x - source_emitter.location.x) * ASSEMBLY_TRAVEL_DISTANCE) + source_emitter.location.x + x_variation
         y_pos = ((particle.location.y - source_emitter.location.y) * ASSEMBLY_TRAVEL_DISTANCE) + source_emitter.location.y + y_variation
         z_pos = ((particle.location.z - source_emitter.location.z) * ASSEMBLY_TRAVEL_DISTANCE/6) + source_emitter.location.z + z_variation
-        print(x_pos)
         particle.location.x = x_pos
         particle.location.y = y_pos
         particle.location.z = z_pos
