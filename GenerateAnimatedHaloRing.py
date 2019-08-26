@@ -14,9 +14,11 @@ from random import randrange
 # to make Bungo proud. Run with care; this one's a computational juggernaut.
 #
 # Create Ring Slice
-#   1. Model an emitter object representing a cross-sectional slice of the ring.
+#   1. Model an emitter object named "Emitter" representing a cross-sectional
+#      slice of the final ring.
 #   2. Move the emitter into position at the final ring radius.
-#   3. Model a particle object representing each piece to be assembled.
+#   3. Model a particle object named "Particle" representing each piece to be
+#      assembled.
 #      > Geometry should include its final shape and a smaller sphere "orb".
 #      > Give cube a material called "Cube Material" with two "Value" nodes
 #        named "Cube Visibility" and "Cube Brightness".
@@ -408,7 +410,7 @@ def main():
         
         # Rotate Empty
         if sample == 0:
-            print("Do Nothing - Slice In Position")
+            print("")
         elif sample == (RING_SLICES / 2) - 1:
             rotate_slice_by_angle(empty, (0.0, 0.0, math.radians(180)))
         else:
