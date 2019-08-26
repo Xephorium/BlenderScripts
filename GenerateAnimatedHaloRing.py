@@ -32,11 +32,11 @@ from random import randrange
 #      > Keyframe empty to rotate between 0 degrees at START_FRAME and 180
 #        degrees at END_FRAME on the z axis. Adjust assembly curve as desired.
 #      > Delete all other keyframes. (Z Rotation should be the only animation.)
-#   1. Select all particles of the source ring slice.
-#   2. Adjust parameters to match final ring dimensions and animation length.
-#   3. (Optional) "Window" > "Toggle System Console" to view script progress.
-#   4. (Optional) Select collection in Outliner view to hold generated objects.
-#   3. Run script!
+#   2. Select all particles of the source ring slice.
+#   3. Adjust parameters to match final ring dimensions and animation length.
+#   4. (Optional) "Window" > "Toggle System Console" to view script progress.
+#   5. (Optional) Select collection in Outliner view to hold generated objects.
+#   6. Run script!
 
 
 EMITTER_NAME = "Emitter"
