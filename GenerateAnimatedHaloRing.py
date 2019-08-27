@@ -72,10 +72,10 @@ ORB_VISIBILITY_VARIATION = 20 # Number of Frames
 ORB_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frame
 CUBE_MATERIAL_SLOT_NAME = "Cube Material"
 CUBE_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frames
-CUBE_BRIGHTNESS_TRANSITION_LENGTH = 120 # Number of Frames
+CUBE_BRIGHTNESS_TRANSITION_LENGTH = 150 # Number of Frames
 
 RING_SLICES = 4096
-RING_SAMPLES = 500 # Number of Slices to Generate (Max of (RING_SLICES / 2 - 1))
+RING_SAMPLES = 70 # Number of Slices to Generate (Max of (RING_SLICES / 2 - 1))
 SLICE_ANGLE = 360 / RING_SLICES
 
 
@@ -193,12 +193,12 @@ def create_animated_materials(slice):
         
         # Set Initial Cube Brightness Keyframe
         bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH)
-        particle[CUBE_BRIGHTNESS] = 3.0
+        particle[CUBE_BRIGHTNESS] = 18.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_BRIGHTNESS))
         
         # Set Final Cube Brightness Keyframe
         bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH + CUBE_BRIGHTNESS_TRANSITION_LENGTH)
-        particle[CUBE_BRIGHTNESS] = 1.0
+        particle[CUBE_BRIGHTNESS] = 5.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_BRIGHTNESS))
         
         # Duplicate Material For Object (Necessary to Create Material Driver)
@@ -397,7 +397,7 @@ def main():
         completion = (angle / 180)
         offset = 0
         if (completion != 0):
-            offset = RING_ANIMATION_LENGTH * completion
+            offset = 10 * sample
         step_offsets.append(offset - start_animation_length)
         #print (offset - start_animation_length)
     
@@ -440,7 +440,7 @@ def main():
             rotate_slice_by_angle(empty, (0.0, 0.0, math.radians(angle)))
             rotate_slice_by_angle(duplicate_slice_empty, (math.radians(180), 0.0, -math.radians(angle)))
             
-            # Add All to Object List
+            # Add Duplicate Slice to Object List
             object_list.append(duplicate_slice_empty)
             for particle in duplicate_slice_particles:
                 object_list.append(particle)
@@ -449,7 +449,7 @@ def main():
         if OUTPUT_SLICE_PROGRESS:
             print("Slice {0} of {1} processed.".format(sample + 1, RING_SAMPLES))
             
-        # Add All to Object List
+        # Add Slice to Object List
         object_list.append(empty)
         for particle in new_slice_particles:
             object_list.append(particle)
