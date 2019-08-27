@@ -33,8 +33,8 @@ from random import randrange
 #
 # Generate Ring Assembly Animation
 #   1. Create Empty at origin called "Animation Progress Marker".
-#      > Keyframe empty to rotate between 0 degrees at START_FRAME and 180
-#        degrees at END_FRAME on the z axis. Adjust assembly curve as desired.
+#      > Keyframe empty to rotate between 0 degrees at RING_ANIMATION_START and 180
+#        degrees at RING_ANIMATION_END on the z axis. Adjust assembly curve as desired.
 #      > Delete all other keyframes. (Z Rotation should be the only animation.)
 #   2. Select all particles of the source ring slice.
 #   3. Adjust parameters to match final ring dimensions and animation length.
@@ -46,31 +46,37 @@ from random import randrange
 #
 
 
+OUTPUT_SLICE_PROGRESS = True
+
 EMITTER_NAME = "Emitter"
 ASSEMBLY_ROTATION_EMPTY = "Animation Progress Marker"
 
-START_FRAME = 70
-END_FRAME = 4090
 ASSEMBLY_ANIMATION_LENGTH = 100 # Number of Frames
 ASSEMBLY_RANDOM_VARIATION = 40 # Number of Frames
 ASSEMBLY_TRAVEL_DISTANCE = 30 # Distance in Blender Units
 ASSEMBLY_START_VARIATION = 2 # Distance in Blender Units
 ASSEMBLY_FLIGHT_VARIATION = 1 # Distance in Blender Units
 
+# Note: RING_ANIMATION_START should match the beginning of the Animation Progress
+#       Marker rotation. To account for assembly, minimum value should be:
+#       ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
+RING_ANIMATION_START = 120
+RING_ANIMATION_LENGTH = 3970
+RING_ANIMATION_END = RING_ANIMATION_START + RING_ANIMATION_LENGTH
+
 ORB_VISIBILITY = "Orb Visibility"
 CUBE_VISIBILITY = "Cube Visibility"
 CUBE_BRIGHTNESS = "Cube Brightness"
 ORB_MATERIAL_SLOT_NAME = "Orb Material"
-ORB_VISIBILITY_VARIATION = 50 # Number of Frames
+ORB_VISIBILITY_VARIATION = 20 # Number of Frames
 ORB_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frame
 CUBE_MATERIAL_SLOT_NAME = "Cube Material"
 CUBE_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frames
 CUBE_BRIGHTNESS_TRANSITION_LENGTH = 120 # Number of Frames
 
 RING_SLICES = 4096
-RING_SAMPLES = 1 # Number of Slices to Generate (Max of (RING_SLICES / 2 - 1))
+RING_SAMPLES = 500 # Number of Slices to Generate (Max of (RING_SLICES / 2 - 1))
 SLICE_ANGLE = 360 / RING_SLICES
-STEP_LENGTH = END_FRAME / (RING_SLICES / 2) # Number of Frames
 
 
 def duplicate_particle(particle):
@@ -84,21 +90,18 @@ def duplicate_particle(particle):
     # Position Object At Vertex
     new_particle.location = particle.location
     
-    # Add Object to Scene
-    bpy.context.collection.objects.link(new_particle)
-    
     return new_particle
 
 
 def create_basic_motion_keyframes(slice, source_emitter):
     
     # Set Final Location Keyframe
-    bpy.context.scene.frame_set(START_FRAME + ASSEMBLY_ANIMATION_LENGTH)
+    bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH)
     for particle in slice:
         particle.keyframe_insert("location")
     
     # Set Start Location Keyframe
-    bpy.context.scene.frame_set(START_FRAME)
+    bpy.context.scene.frame_set(RING_ANIMATION_START)
     random_range = int(ASSEMBLY_START_VARIATION * 30)
     for particle in slice:
         x_variation = 0
@@ -129,22 +132,22 @@ def create_animated_materials(slice):
         orb_visibility_offset = randrange(0, ORB_VISIBILITY_VARIATION + 1)
         
         # Set First Orb Visibility Keyframe
-        bpy.context.scene.frame_set(START_FRAME + orb_visibility_offset)
+        bpy.context.scene.frame_set(RING_ANIMATION_START + orb_visibility_offset)
         particle[ORB_VISIBILITY] = 0.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
         
         # Set Second Orb Visibility Keyframe
-        bpy.context.scene.frame_set(START_FRAME + orb_visibility_offset + (ASSEMBLY_ANIMATION_LENGTH / 10))
+        bpy.context.scene.frame_set(RING_ANIMATION_START + orb_visibility_offset + (ASSEMBLY_ANIMATION_LENGTH / 10))
         particle[ORB_VISIBILITY] = 1.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
         
         # Set Third Orb Visibility Keyframe
-        bpy.context.scene.frame_set(START_FRAME + ASSEMBLY_ANIMATION_LENGTH)
+        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH)
         particle[ORB_VISIBILITY] = 1.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
         
         # Set Fourth Orb Visibility Keyframe
-        bpy.context.scene.frame_set(START_FRAME + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH)
+        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH)
         particle[ORB_VISIBILITY] = 0.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
         
@@ -164,12 +167,12 @@ def create_animated_materials(slice):
         ### Cube Visibility ###
         
         # Set Initial Cube Visibility Keyframe
-        bpy.context.scene.frame_set(START_FRAME + ASSEMBLY_ANIMATION_LENGTH)
+        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH)
         particle[CUBE_VISIBILITY] = 0.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_VISIBILITY))
         
         # Set Final Cube Visibility Keyframe
-        bpy.context.scene.frame_set(START_FRAME + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH)
+        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH)
         particle[CUBE_VISIBILITY] = 1.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_VISIBILITY))
         
@@ -189,12 +192,12 @@ def create_animated_materials(slice):
         ### Cube Brightness ###
         
         # Set Initial Cube Brightness Keyframe
-        bpy.context.scene.frame_set(START_FRAME + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH)
+        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH)
         particle[CUBE_BRIGHTNESS] = 3.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_BRIGHTNESS))
         
         # Set Final Cube Brightness Keyframe
-        bpy.context.scene.frame_set(START_FRAME + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH + CUBE_BRIGHTNESS_TRANSITION_LENGTH)
+        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH + CUBE_BRIGHTNESS_TRANSITION_LENGTH)
         particle[CUBE_BRIGHTNESS] = 1.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_BRIGHTNESS))
         
@@ -216,7 +219,7 @@ def create_animated_materials(slice):
 def give_start_frame_horizontal_bias(slice, source_emitter):
     
     # Cache Max Travel Distances
-    bpy.context.scene.frame_set(START_FRAME + ASSEMBLY_ANIMATION_LENGTH)
+    bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH)
     max_travel_distances = []
     for particle in slice:
         max_travel_distances.append((
@@ -224,7 +227,7 @@ def give_start_frame_horizontal_bias(slice, source_emitter):
             .9 * (abs(particle.location.y - source_emitter.location.y) * ASSEMBLY_TRAVEL_DISTANCE)))
     
     # Bias Start Position
-    bpy.context.scene.frame_set(START_FRAME)
+    bpy.context.scene.frame_set(RING_ANIMATION_START)
     for index, particle in enumerate(slice):
         particle.location.z = particle.location.z * .5
         x_distance = particle.location.x - source_emitter.location.x
@@ -252,8 +255,8 @@ def randomize_flight_pattern(slice):
         
         # Determine Variation Frame
         range = .2
-        range_start = int(START_FRAME + (((1 - range) / 2) * ASSEMBLY_ANIMATION_LENGTH))
-        range_end = int((START_FRAME + ASSEMBLY_ANIMATION_LENGTH) - (((1 - range) / 2) * ASSEMBLY_ANIMATION_LENGTH))
+        range_start = int(RING_ANIMATION_START + (((1 - range) / 2) * ASSEMBLY_ANIMATION_LENGTH))
+        range_end = int((RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH) - (((1 - range) / 2) * ASSEMBLY_ANIMATION_LENGTH))
         frame = randrange(range_start, range_end)
         
         # Randomize Flight Path
@@ -306,9 +309,9 @@ def duplicate_slice(slice):
     
     # Create Duplicate Empty
     empty = bpy.data.objects.new("ParticleEmpty.{:03d}".format(0), None)
-    bpy.context.collection.objects.link(empty)
     
     # Parent Empty to Particles
+    new_particles = []
     for particle in slice:
         
         # Create Duplicate Particle
@@ -316,7 +319,6 @@ def duplicate_slice(slice):
             name=(particle.name+".{:03d}").format(0),
             object_data=particle.data.copy()
         )
-        bpy.context.collection.objects.link(new_particle)
         
         # Copy Animations
         action_copy = particle.animation_data.action.copy()
@@ -326,8 +328,10 @@ def duplicate_slice(slice):
         # Set Particle Parent
         new_particle.parent = empty
         new_particle.matrix_parent_inverse = empty.matrix_world.inverted()
+        
+        new_particles.append(new_particle)
     
-    return empty
+    return (empty, new_particles)
 
 
 def rotate_slice_by_angle(empty, angle_vector):
@@ -344,7 +348,7 @@ def rotate_slice_by_angle(empty, angle_vector):
             euler.to_quaternion().to_euler(empty.rotation_mode))
             
 
-def delay_animations(slice, delay):
+def offset_animations(slice, offset):
     for particle in slice:
         curves = particle.animation_data.action.fcurves
         
@@ -357,9 +361,13 @@ def delay_animations(slice, delay):
                 for keyframe_point in curve.keyframe_points:
                     
                     # Advance By Offset
-                    keyframe_point.co.x = keyframe_point.co.x + delay
-                    keyframe_point.handle_left.x = keyframe_point.handle_left.x + delay
-                    keyframe_point.handle_right.x = keyframe_point.handle_right.x + delay
+                    keyframe_point.co.x = keyframe_point.co.x + offset
+                    keyframe_point.handle_left.x = keyframe_point.handle_left.x + offset
+                    keyframe_point.handle_right.x = keyframe_point.handle_right.x + offset
+
+
+def hide_object(object):
+    bpy.data.objects[object.name].hide_viewport = True
 
 
 # Main Program
@@ -376,12 +384,22 @@ def main():
             
     # Get Assembly Rotation Curve
     assembly_curve = bpy.data.objects[ASSEMBLY_ROTATION_EMPTY].animation_data.action.fcurves[0]
-            
+    
+    # Create Final Object List
+    object_list = []
+    
     # Calculate Slice Animation Offsets
+    step_length = RING_ANIMATION_END / (RING_SLICES / 2)
+    start_animation_length = ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
     step_offsets = []
     for sample in range(0, RING_SAMPLES):
-        angle = math.degrees(assembly_curve.evaluate(sample * STEP_LENGTH))
-        step_offsets.append((angle / 180) * END_FRAME)
+        angle = math.degrees(assembly_curve.evaluate(start_animation_length + (sample * step_length)))
+        completion = (angle / 180)
+        offset = 0
+        if (completion != 0):
+            offset = RING_ANIMATION_LENGTH * completion
+        step_offsets.append(offset - start_animation_length)
+        #print (offset - start_animation_length)
     
     # For Each Sample (Number of Slices to Generate)
     for sample in range(0, RING_SAMPLES):
@@ -397,13 +415,12 @@ def main():
         #give_start_frame_horizontal_bias(new_slice_particles, source_emitter)
         randomize_flight_pattern(new_slice_particles)
         randomize_keyframe_delay(new_slice_particles)
-        delay_animations(new_slice_particles, step_offsets[sample])
+        offset_animations(new_slice_particles, step_offsets[sample])
         ease_keyframes(new_slice_particles)
         remove_easing_on_start_frame(new_slice_particles)
         
         # Create Slice Empty
         empty = bpy.data.objects.new("ParticleEmpty.{:03d}".format(0), None)
-        bpy.context.collection.objects.link(empty)
         
         # Parent Empty to Particles
         for particle in new_slice_particles:
@@ -419,15 +436,32 @@ def main():
         elif sample == (RING_SLICES / 2) - 1:
             rotate_slice_by_angle(empty, (0.0, 0.0, math.radians(180)))
         else:
-            duplicate_slice_empty = duplicate_slice(new_slice_particles)
+            duplicate_slice_empty, duplicate_slice_particles = duplicate_slice(new_slice_particles)
             rotate_slice_by_angle(empty, (0.0, 0.0, math.radians(angle)))
             rotate_slice_by_angle(duplicate_slice_empty, (math.radians(180), 0.0, -math.radians(angle)))
             
+            # Add All to Object List
+            object_list.append(duplicate_slice_empty)
+            for particle in duplicate_slice_particles:
+                object_list.append(particle)
+            
         # Print Update
-        print("Slice {0} of {1} processed.".format(sample + 1, RING_SAMPLES))
+        if OUTPUT_SLICE_PROGRESS:
+            print("Slice {0} of {1} processed.".format(sample + 1, RING_SAMPLES))
+            
+        # Add All to Object List
+        object_list.append(empty)
+        for particle in new_slice_particles:
+            object_list.append(particle)
+    
+    # Create All Objects
+    for index, object in enumerate(object_list):
+        print("Object {0} of {1} added to scene.".format(index + 1, len(object_list)))
+        bpy.context.collection.objects.link(object)
+        hide_object(object)
     
     # Return to Start Frame
-    bpy.context.scene.frame_set(START_FRAME)
+    bpy.context.scene.frame_set(RING_ANIMATION_START)
     
 
 if __name__ == '__main__':
