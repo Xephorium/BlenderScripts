@@ -52,7 +52,7 @@ EMITTER_NAME = "Emitter"
 ASSEMBLY_ROTATION_EMPTY = "Animation Progress Marker"
 
 ASSEMBLY_ANIMATION_LENGTH = 100 # Number of Frames
-ASSEMBLY_RANDOM_VARIATION = 40 # Number of Frames
+ASSEMBLY_RANDOM_VARIATION = 0 # Number of Frames
 ASSEMBLY_TRAVEL_DISTANCE = 30 # Distance in Blender Units
 ASSEMBLY_START_VARIATION = 2 # Distance in Blender Units
 ASSEMBLY_FLIGHT_VARIATION = 1 # Distance in Blender Units
@@ -72,10 +72,10 @@ ORB_VISIBILITY_VARIATION = 20 # Number of Frames
 ORB_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frame
 CUBE_MATERIAL_SLOT_NAME = "Cube Material"
 CUBE_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frames
-CUBE_BRIGHTNESS_TRANSITION_LENGTH = 150 # Number of Frames
+CUBE_BRIGHTNESS_TRANSITION_LENGTH = 120 # Number of Frames
 
 RING_SLICES = 4096
-RING_SAMPLES = 70 # Number of Slices to Generate (Max of (RING_SLICES / 2 - 1))
+RING_SAMPLES = 50 # Number of Slices to Generate (Max of (RING_SLICES / 2))
 SLICE_ANGLE = 360 / RING_SLICES
 
 
@@ -207,7 +207,7 @@ def create_animated_materials(slice):
         
         # Set Final Cube Brightness Keyframe
         bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH + CUBE_BRIGHTNESS_TRANSITION_LENGTH)
-        particle[CUBE_BRIGHTNESS] = 5.0
+        particle[CUBE_BRIGHTNESS] = 2.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_BRIGHTNESS))
         
         # Duplicate Material For Object (Necessary to Create Material Driver)
@@ -379,6 +379,10 @@ def offset_animations(slice, offset):
 
 def hide_object(object):
     bpy.data.objects[object.name].hide_viewport = True
+    
+    
+def get_frame_for_angle(angle):
+    return (-(-12934134040487354368 * angle - 2904926313862812672)/(108825432311457 - 459540855000 * angle)) ** 0.4552081962966992
 
 
 # Main Program
@@ -400,18 +404,18 @@ def main():
     object_list = []
     
     # Calculate Slice Animation Offsets
-    step_length = RING_ANIMATION_LENGTH / RING_SLICES
-    start_animation_length = ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
+    #step_length = 180 / (RING_SLICES / 2)
+    start_animation_length = 80 + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
     step_offsets = []
     for sample in range(0, RING_SAMPLES):
-        rotation_frame_at_sample = start_animation_length + (sample * step_length * 2)
-        angle = math.degrees(assembly_curve.evaluate(rotation_frame_at_sample))
-        completion = (angle / 180)
-        offset = 0
-        if (completion != 0):
-            offset = 10 * sample
-        step_offsets.append(offset - start_animation_length)
-        print(rotation_frame_at_sample - start_animation_length, angle)
+        #rotation_frame_at_sample = start_animation_length + (sample * step_length * 2)
+        #angle = math.degrees(assembly_curve.evaluate(rotation_frame_at_sample))
+        angle = (180 / (RING_SLICES / 2)) * sample
+        #print(angle)
+        offset = get_frame_for_angle(angle) - start_animation_length
+        #print(angle, offset)
+        step_offsets.append(offset)
+        #print(rotation_frame_at_sample - start_animation_length, angle)
     
     # For Each Sample (Number of Slices to Generate)
     for sample in range(0, RING_SAMPLES):
