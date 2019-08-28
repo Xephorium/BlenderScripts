@@ -111,9 +111,18 @@ def create_basic_motion_keyframes(slice, source_emitter):
             x_variation = randrange(-random_range, random_range) / 30
             y_variation = randrange(-random_range, random_range) / 30
             z_variation = randrange(-random_range, random_range) / 30
-        x_pos_sign = (particle.location.x - source_emitter.location.x) / abs(particle.location.x - source_emitter.location.x)
-        y_pos_sign = (particle.location.y - source_emitter.location.y) / abs(particle.location.y - source_emitter.location.y)
-        z_pos_sign = (particle.location.z - source_emitter.location.z) / abs(particle.location.z - source_emitter.location.z)
+        x_distance = particle.location.x - source_emitter.location.x
+        x_pos_sign = 1
+        if x_distance != 0:
+            x_pos_sign = (x_distance) / abs(x_distance)
+        y_distance = particle.location.y - source_emitter.location.y
+        y_pos_sign = 1
+        if y_distance != 0:
+            y_pos_sign = (y_distance) / abs(y_distance)
+        z_distance = particle.location.z - source_emitter.location.z
+        z_pos_sign = 1
+        if z_distance != 0:
+            z_pos_sign = (z_distance) / abs(z_distance)
         x_pos = ((particle.location.x - source_emitter.location.x) * ASSEMBLY_TRAVEL_DISTANCE) + source_emitter.location.x + x_variation
         y_pos = ((particle.location.y - source_emitter.location.y) * ASSEMBLY_TRAVEL_DISTANCE) + source_emitter.location.y + y_variation
         z_pos = ((particle.location.z - source_emitter.location.z) * ASSEMBLY_TRAVEL_DISTANCE/20) + source_emitter.location.z + z_variation
@@ -274,7 +283,9 @@ def randomize_keyframe_delay(slice):
         curves = particle.animation_data.action.fcurves
         
         # Calculate Delay
-        delay = randrange(0, ASSEMBLY_RANDOM_VARIATION)
+        delay = 0
+        if ASSEMBLY_RANDOM_VARIATION > 0:
+            delay = randrange(0, ASSEMBLY_RANDOM_VARIATION)
         
         # For Each Location or Material Keyframe
         for curve in curves:
@@ -389,17 +400,18 @@ def main():
     object_list = []
     
     # Calculate Slice Animation Offsets
-    step_length = RING_ANIMATION_END / (RING_SLICES / 2)
+    step_length = RING_ANIMATION_LENGTH / RING_SLICES
     start_animation_length = ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
     step_offsets = []
     for sample in range(0, RING_SAMPLES):
-        angle = math.degrees(assembly_curve.evaluate(start_animation_length + (sample * step_length)))
+        rotation_frame_at_sample = start_animation_length + (sample * step_length * 2)
+        angle = math.degrees(assembly_curve.evaluate(rotation_frame_at_sample))
         completion = (angle / 180)
         offset = 0
         if (completion != 0):
             offset = 10 * sample
         step_offsets.append(offset - start_animation_length)
-        #print (offset - start_animation_length)
+        print(rotation_frame_at_sample - start_animation_length, angle)
     
     # For Each Sample (Number of Slices to Generate)
     for sample in range(0, RING_SAMPLES):
@@ -433,7 +445,7 @@ def main():
         # Rotate Empty
         if sample == 0:
             print("")
-        elif sample == (RING_SLICES / 2) - 1:
+        elif sample == (RING_SLICES / 2):
             rotate_slice_by_angle(empty, (0.0, 0.0, math.radians(180)))
         else:
             duplicate_slice_empty, duplicate_slice_particles = duplicate_slice(new_slice_particles)
@@ -456,7 +468,8 @@ def main():
     
     # Create All Objects
     for index, object in enumerate(object_list):
-        print("Object {0} of {1} added to scene.".format(index + 1, len(object_list)))
+        if OUTPUT_SLICE_PROGRESS:
+            print("Object {0} of {1} added to scene.".format(index + 1, len(object_list)))
         bpy.context.collection.objects.link(object)
         hide_object(object)
     
