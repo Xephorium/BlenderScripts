@@ -49,6 +49,7 @@ from random import randrange
 
 
 OUTPUT_SLICE_PROGRESS = True
+PARTICLE_DRIFT_BEFORE_ASSEMBLY = False
 
 EMITTER_NAME = "Emitter"
 ASSEMBLY_ROTATION_EMPTY = "Animation Progress Marker"
@@ -254,27 +255,42 @@ def give_start_frame_horizontal_bias(slice, source_emitter):
 def randomize_flight_pattern(slice):
     for particle in slice:
         
-        # Determine Flight Variation
-        random_range = int(ASSEMBLY_FLIGHT_VARIATION * 30)
-        x_variation = 0
-        y_variation = 0
-        z_variation = 0
-        if random_range != 0:
-            x_variation = randrange(-random_range, random_range) / 30
-            y_variation = randrange(-random_range, random_range) / 30
-            z_variation = randrange(-int(random_range/2), int(random_range/2)) / 30
-        
         # Determine Variation Frame
         range = .2
         range_start = int(RING_ANIMATION_START + (((1 - range) / 2) * ASSEMBLY_ANIMATION_LENGTH))
         range_end = int((RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH) - (((1 - range) / 2) * ASSEMBLY_ANIMATION_LENGTH))
         frame = randrange(range_start, range_end)
         
+        # Determine Variation Position
+        random_range = int(ASSEMBLY_FLIGHT_VARIATION * 30)
+        x_variation = 0
+        y_variation = 0
+        z_variation = 0
+        if random_range != 0:
+            x_variation = randrange(-int(random_range/2), int(random_range/2)) / 30
+            y_variation = randrange(-int(random_range/2), int(random_range/2)) / 30
+            z_variation = randrange(-random_range, random_range) / 30
+        
+        # Determine Position
+        x_position = particle.location.x
+        y_position = particle.location.y
+        z_position = particle.location.z
+        if not PARTICLE_DRIFT_BEFORE_ASSEMBLY:
+            curves = bpy.data.objects[particle.name].animation_data.action.fcurves
+            for curve_number, curve in enumerate(curves):
+                if curve.data_path == "location":
+                    if curve_number == 0:
+                        x_position = curve.evaluate(frame)
+                    elif curve_number == 1:
+                        y_position = curve.evaluate(frame)
+                    else:
+                        z_position = curve.evaluate(frame)
+        
         # Randomize Flight Path
         bpy.context.scene.frame_set(frame)
-        particle.location.x = particle.location.x + x_variation
-        particle.location.y = particle.location.y + y_variation
-        particle.location.z = particle.location.z + z_variation
+        particle.location.x = x_position + x_variation
+        particle.location.y = y_position + y_variation
+        particle.location.z = z_position + z_variation
         
         # Insert Keyframe
         particle.keyframe_insert("location")
