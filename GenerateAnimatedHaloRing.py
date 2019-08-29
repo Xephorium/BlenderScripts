@@ -49,13 +49,12 @@ from random import randrange
 
 
 OUTPUT_SLICE_PROGRESS = True
-PARTICLE_DRIFT_BEFORE_ASSEMBLY = False
+PARTICLE_DRIFT_BEFORE_ASSEMBLY = True
 
 EMITTER_NAME = "Emitter"
-ASSEMBLY_ROTATION_EMPTY = "Animation Progress Marker"
 
 ASSEMBLY_ANIMATION_LENGTH = 100 # Number of Frames
-ASSEMBLY_RANDOM_VARIATION = 0 # Number of Frames
+ASSEMBLY_RANDOM_VARIATION = 20 # Number of Frames
 ASSEMBLY_TRAVEL_DISTANCE = 30 # Distance in Blender Units
 ASSEMBLY_START_VARIATION = 2 # Distance in Blender Units
 ASSEMBLY_FLIGHT_VARIATION = 1 # Distance in Blender Units
@@ -75,10 +74,10 @@ ORB_VISIBILITY_VARIATION = 20 # Number of Frames
 ORB_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frame
 CUBE_MATERIAL_SLOT_NAME = "Cube Material"
 CUBE_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frames
-CUBE_BRIGHTNESS_TRANSITION_LENGTH = 120 # Number of Frames
+CUBE_BRIGHTNESS_TRANSITION_LENGTH = 100 # Number of Frames
 
 RING_SLICES = 4096
-RING_SAMPLES = 50 # Number of Slices to Generate (Max of (RING_SLICES / 2))
+RING_SAMPLES = 70 # Number of Slices to Generate (Max of (RING_SLICES / 2))
 SLICE_ANGLE = 360 / RING_SLICES
 
 
@@ -159,7 +158,7 @@ def create_animated_materials(slice):
         particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
         
         # Set Fourth Orb Visibility Keyframe
-        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH)
+        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + ORB_VISIBILITY_TRANSITION_LENGTH)
         particle[ORB_VISIBILITY] = 0.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
         
@@ -210,7 +209,7 @@ def create_animated_materials(slice):
         
         # Set Final Cube Brightness Keyframe
         bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH + CUBE_BRIGHTNESS_TRANSITION_LENGTH)
-        particle[CUBE_BRIGHTNESS] = 2.0
+        particle[CUBE_BRIGHTNESS] = 3.0
         particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_BRIGHTNESS))
         
         # Duplicate Material For Object (Necessary to Create Material Driver)
@@ -404,7 +403,7 @@ def get_offset_for_slice(angle):
     # curve into free regression curve fitting website MyCurvefit.com and solving the
     # resulting equation for x via WolframAlpha. The resulting equation determines the
     # frame offset of a slice for a given angle (0-180).
-    return (-(-12934134040487354368 * angle - 2904926313862812672)/(108825432311457 - 459540855000 * angle)) ** 0.4552081962966992
+    return ((-(-4715661497503125 * angle - 4030738072695250)/(48868807743 - 201647250 * angle)) ** 0.4614561803518418)
 
 
 # Main Program
@@ -418,15 +417,12 @@ def main():
     for o in bpy.context.selected_objects:
         if o.name != EMITTER_NAME:
             source_particles.append(o)
-            
-    # Get Assembly Rotation Curve
-    assembly_curve = bpy.data.objects[ASSEMBLY_ROTATION_EMPTY].animation_data.action.fcurves[0]
     
     # Create Final Object List
     object_list = []
     
     # Calculate Slice Animation Offsets
-    start_animation_length = 80 + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
+    start_animation_length = 92 + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
     step_offsets = []
     for sample in range(0, RING_SAMPLES):
         angle = (180 / (RING_SLICES / 2)) * sample
