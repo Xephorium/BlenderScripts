@@ -74,10 +74,10 @@ ORB_VISIBILITY_VARIATION = 20 # Number of Frames
 ORB_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frame
 CUBE_MATERIAL_SLOT_NAME = "Cube Material"
 CUBE_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frames
-CUBE_BRIGHTNESS_TRANSITION_LENGTH = 60 # Number of Frames
+CUBE_BRIGHTNESS_TRANSITION_LENGTH = 30 # Number of Frames
 
 RING_SLICES = 4096
-RING_SAMPLES = 70 # Number of Slices to Generate (Max of (RING_SLICES / 2))
+RING_SAMPLES = 300 # Number of Slices to Generate (Max of (RING_SLICES / 2))
 SLICE_ANGLE = 360 / RING_SLICES
 
 
@@ -422,7 +422,7 @@ def main():
     object_list = []
     
     # Calculate Slice Animation Offsets
-    start_animation_length = 92 + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
+    start_animation_length = 107 + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
     step_offsets = []
     for sample in range(0, RING_SAMPLES):
         angle = (180 / (RING_SLICES / 2)) * sample
