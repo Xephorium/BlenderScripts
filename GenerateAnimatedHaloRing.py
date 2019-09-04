@@ -83,38 +83,13 @@ SLICE_ANGLE = 360 / RING_SLICES
 ### Low-Level, Highly Efficient API Manipulation Functions ###
 
 # Manually Insert Location Keyframe 
-# Source: https://docs.blender.org/api/blender_python_api_2_69_10/info_quickstart.html#animation
 def insert_location_keyframe(object, frame, location):
-    x = 0
-    y = 1
-    z = 2
+    insert_indexed_keyframe(object, 0, "location", frame, location[0])
+    insert_indexed_keyframe(object, 1, "location", frame, location[1])
+    insert_indexed_keyframe(object, 2, "location", frame, location[2])
     
-    # Ensure Object Has Animation Data
-    if object.animation_data is None:
-        object.animation_data_create()
-        
-    # Ensure Animation Data Has Action
-    if object.animation_data.action is None:
-        object.animation_data.action = bpy.data.actions.new(name="HaloAnimationAction")
-    
-    # Get Location Curves
-    curve_x = 0
-    curve_y = 0
-    curve_z = 0
-    if len(object.animation_data.action.fcurves) == 0:
-        curve_x = object.animation_data.action.fcurves.new(data_path="location", index=x)
-        curve_y = object.animation_data.action.fcurves.new(data_path="location", index=y)
-        curve_z = object.animation_data.action.fcurves.new(data_path="location", index=z)
-    else:
-        curve_x = object.animation_data.action.fcurves[x]
-        curve_y = object.animation_data.action.fcurves[y]
-        curve_z = object.animation_data.action.fcurves[z]
-    
-    # Add Keyframes
-    curve_x.keyframe_points.insert(frame, location[x])
-    curve_y.keyframe_points.insert(frame, location[y])
-    curve_z.keyframe_points.insert(frame, location[z])
-    
+# Manually insert keyframe of <value> on curve of <index> and <name> at <frame> for given <object>.
+# Source: https://docs.blender.org/api/blender_python_api_2_69_10/info_quickstart.html#animation
 def insert_indexed_keyframe(object, curve_index, curve_name, frame, value):
     
     # Ensure Object Has Animation Data
