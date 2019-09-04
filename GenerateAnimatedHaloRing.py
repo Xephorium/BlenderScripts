@@ -77,19 +77,56 @@ CUBE_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frames
 CUBE_BRIGHTNESS_TRANSITION_LENGTH = 30 # Number of Frames
 
 RING_SLICES = 4096
-RING_SAMPLES = 300 # Number of Slices to Generate (Max of (RING_SLICES / 2))
+RING_SAMPLES = 30 # Number of Slices to Generate (Max of (RING_SLICES / 2))
 SLICE_ANGLE = 360 / RING_SLICES
 
+
+### Low-Level, Highly Efficient API Manipulation Functions ###
+
+# Manually Insert Location Keyframe 
+# Source: https://docs.blender.org/api/blender_python_api_2_69_10/info_quickstart.html#animation
+def insert_location_keyframe(object, frame, location):
+    x = 0
+    y = 1
+    z = 2
+    
+    # Ensure Object Has Animation Data
+    if object.animation_data is None:
+        object.animation_data_create()
+        
+    # Ensure Animation Data Has Action
+    if object.animation_data.action is None:
+        object.animation_data.action = bpy.data.actions.new(name="HaloAnimationAction")
+    
+    # Get Location Curves
+    curve_x = 0
+    curve_y = 0
+    curve_z = 0
+    if len(object.animation_data.action.fcurves) == 0:
+        curve_x = object.animation_data.action.fcurves.new(data_path="location", index=x)
+        curve_y = object.animation_data.action.fcurves.new(data_path="location", index=y)
+        curve_z = object.animation_data.action.fcurves.new(data_path="location", index=z)
+    else:
+        curve_x = object.animation_data.action.fcurves[x]
+        curve_y = object.animation_data.action.fcurves[y]
+        curve_z = object.animation_data.action.fcurves[z]
+    
+    # Add Keyframes
+    curve_x.keyframe_points.add(1)
+    curve_x.keyframe_points[len(curve_x.keyframe_points) - 1].co = frame, location[x]
+    curve_y.keyframe_points.add(1)
+    curve_y.keyframe_points[len(curve_y.keyframe_points) - 1].co = frame, location[y]
+    curve_z.keyframe_points.add(1)
+    curve_z.keyframe_points[len(curve_z.keyframe_points) - 1].co = frame, location[z]
+
+
+### Utility Functions ###
 
 def duplicate_particle(particle):
     
     # Create Particle Object
-    new_particle = bpy.data.objects.new(
-        name=(particle.name+".{:03d}").format(0),
-        object_data=particle.data.copy()
-    )
-        
-    # Position Object At Vertex
+    new_particle = particle.copy()
+    new_particle.data = particle.data.copy()
     new_particle.location = particle.location
     
     return new_particle
@@ -98,12 +135,12 @@ def duplicate_particle(particle):
 def create_basic_motion_keyframes(slice, source_emitter):
     
     # Set Final Location Keyframe
-    bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH)
+    start_frame = RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH
     for particle in slice:
-        particle.keyframe_insert("location")
+        insert_location_keyframe(particle, start_frame, (particle.location.x, particle.location.y, particle.location.z))
     
     # Set Start Location Keyframe
-    bpy.context.scene.frame_set(RING_ANIMATION_START)
+    end_frame = RING_ANIMATION_START
     random_range = int(ASSEMBLY_START_VARIATION * 30)
     for particle in slice:
         x_variation = 0
@@ -128,10 +165,7 @@ def create_basic_motion_keyframes(slice, source_emitter):
         x_pos = ((particle.location.x - source_emitter.location.x) * ASSEMBLY_TRAVEL_DISTANCE) + source_emitter.location.x + x_variation
         y_pos = ((particle.location.y - source_emitter.location.y) * ASSEMBLY_TRAVEL_DISTANCE) + source_emitter.location.y + y_variation
         z_pos = ((particle.location.z - source_emitter.location.z) * ASSEMBLY_TRAVEL_DISTANCE/20) + source_emitter.location.z + z_variation
-        particle.location.x = x_pos
-        particle.location.y = y_pos
-        particle.location.z = z_pos
-        particle.keyframe_insert("location")
+        insert_location_keyframe(particle, end_frame, (x_pos, y_pos, z_pos))
         
 
 def create_animated_materials(slice):
@@ -227,30 +261,6 @@ def create_animated_materials(slice):
         variable.targets[0].data_path = "[\"{0}\"]".format(CUBE_BRIGHTNESS)
 
 
-def give_start_frame_horizontal_bias(slice, source_emitter):
-    
-    # Cache Max Travel Distances
-    bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH)
-    max_travel_distances = []
-    for particle in slice:
-        max_travel_distances.append((
-            .9 * (abs(particle.location.x - source_emitter.location.x) * ASSEMBLY_TRAVEL_DISTANCE),
-            .9 * (abs(particle.location.y - source_emitter.location.y) * ASSEMBLY_TRAVEL_DISTANCE)))
-    
-    # Bias Start Position
-    bpy.context.scene.frame_set(RING_ANIMATION_START)
-    for index, particle in enumerate(slice):
-        particle.location.z = particle.location.z * .5
-        x_distance = particle.location.x - source_emitter.location.x
-        if abs(x_distance) < max_travel_distances[index][0]:
-            particle.location.x = source_emitter.location.x + (x_distance * ( 2 + (x_distance / max_travel_distances[index][0])))
-        y_distance = particle.location.y - source_emitter.location.y
-        if abs(y_distance) < max_travel_distances[index][1]:
-            particle.location.y = source_emitter.location.y + (y_distance * ( 2 + (x_distance / max_travel_distances[index][1])))
-        
-        particle.keyframe_insert("location")
-
-
 def randomize_flight_pattern(slice):
     for particle in slice:
         
@@ -284,15 +294,9 @@ def randomize_flight_pattern(slice):
                         y_position = curve.evaluate(frame)
                     else:
                         z_position = curve.evaluate(frame)
-        
-        # Randomize Flight Path
-        bpy.context.scene.frame_set(frame)
-        particle.location.x = x_position + x_variation
-        particle.location.y = y_position + y_variation
-        particle.location.z = z_position + z_variation
-        
+    
         # Insert Keyframe
-        particle.keyframe_insert("location")
+        insert_location_keyframe(particle, frame, (x_position + x_variation, y_position + y_variation, z_position + z_variation))
         
 
 def randomize_keyframe_delay(slice):
@@ -333,20 +337,18 @@ def remove_easing_on_start_frame(slice):
                 curve.keyframe_points[0].handle_right = curve.keyframe_points[0].co
 
 
-def duplicate_slice(slice):
+def duplicate_slice(slice, source_empty):
     
     # Create Duplicate Empty
-    empty = bpy.data.objects.new("ParticleEmpty.{:03d}".format(0), None)
+    empty = source_empty.copy()
     
     # Parent Empty to Particles
     new_particles = []
     for particle in slice:
         
         # Create Duplicate Particle
-        new_particle = bpy.data.objects.new(
-            name=(particle.name+".{:03d}").format(0),
-            object_data=particle.data.copy()
-        )
+        new_particle = particle.copy()
+        new_particle.data = particle.data.copy()
         
         # Copy Animations
         action_copy = particle.animation_data.action.copy()
@@ -406,7 +408,8 @@ def get_offset_for_slice(angle):
     return ((-(-4715661497503125 * angle - 4030738072695250)/(48868807743 - 201647250 * angle)) ** 0.4614561803518418)
 
 
-# Main Program
+### Main Program ###
+
 def main():
    
     # Get Emitter
@@ -420,6 +423,9 @@ def main():
     
     # Create Final Object List
     object_list = []
+    
+    # Create Source Empty
+    source_empty = bpy.data.objects.new("ParticleEmpty.{:03d}".format(0), None)
     
     # Calculate Slice Animation Offsets
     start_animation_length = 107 + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
@@ -438,8 +444,7 @@ def main():
         
         # Configure New Slice
         create_basic_motion_keyframes(new_slice_particles, source_emitter)
-        create_animated_materials(new_slice_particles)
-        #give_start_frame_horizontal_bias(new_slice_particles, source_emitter)
+        #create_animated_materials(new_slice_particles)
         randomize_flight_pattern(new_slice_particles)
         randomize_keyframe_delay(new_slice_particles)
         offset_animations(new_slice_particles, step_offsets[sample])
@@ -447,7 +452,7 @@ def main():
         remove_easing_on_start_frame(new_slice_particles)
         
         # Create Slice Empty
-        empty = bpy.data.objects.new("ParticleEmpty.{:03d}".format(0), None)
+        empty = source_empty.copy()
         
         # Parent Empty to Particles
         for particle in new_slice_particles:
@@ -463,7 +468,7 @@ def main():
         elif sample == (RING_SLICES / 2):
             rotate_slice_by_angle(empty, (0.0, 0.0, math.radians(180)))
         else:
-            duplicate_slice_empty, duplicate_slice_particles = duplicate_slice(new_slice_particles)
+            duplicate_slice_empty, duplicate_slice_particles = duplicate_slice(new_slice_particles, source_empty)
             rotate_slice_by_angle(empty, (0.0, 0.0, math.radians(angle)))
             rotate_slice_by_angle(duplicate_slice_empty, (math.radians(180), 0.0, -math.radians(angle)))
             
