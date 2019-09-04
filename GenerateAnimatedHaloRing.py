@@ -49,7 +49,6 @@ from random import randrange
 
 
 OUTPUT_SLICE_PROGRESS = True
-PARTICLE_DRIFT_BEFORE_ASSEMBLY = True
 
 EMITTER_NAME = "Emitter"
 
@@ -77,7 +76,7 @@ CUBE_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frames
 CUBE_BRIGHTNESS_TRANSITION_LENGTH = 30 # Number of Frames
 
 RING_SLICES = 4096
-RING_SAMPLES = 30 # Number of Slices to Generate (Max of (RING_SLICES / 2))
+RING_SAMPLES = 5 # Number of Slices to Generate (Max of (RING_SLICES / 2))
 SLICE_ANGLE = 360 / RING_SLICES
 
 
@@ -112,13 +111,30 @@ def insert_location_keyframe(object, frame, location):
         curve_z = object.animation_data.action.fcurves[z]
     
     # Add Keyframes
-    curve_x.keyframe_points.add(1)
-    curve_x.keyframe_points[len(curve_x.keyframe_points) - 1].co = frame, location[x]
-    curve_y.keyframe_points.add(1)
-    curve_y.keyframe_points[len(curve_y.keyframe_points) - 1].co = frame, location[y]
-    curve_z.keyframe_points.add(1)
-    curve_z.keyframe_points[len(curve_z.keyframe_points) - 1].co = frame, location[z]
+    curve_x.keyframe_points.insert(frame, location[x])
+    curve_y.keyframe_points.insert(frame, location[y])
+    curve_z.keyframe_points.insert(frame, location[z])
+    
+def insert_indexed_keyframe(object, curve_index, curve_name, frame, value):
+    
+    # Ensure Object Has Animation Data
+    if object.animation_data is None:
+        object.animation_data_create()
+        
+    # Ensure Animation Data Has Action
+    if object.animation_data.action is None:
+        object.animation_data.action = bpy.data.actions.new(name="HaloAnimationAction")
+        
+    # Get Curve
+    curve = 0
+    if len(object.animation_data.action.fcurves) < curve_index + 1:
+        curve = object.animation_data.action.fcurves.new(data_path=curve_name, index=curve_index)
+    else:
+        curve = object.animation_data.action.fcurves[curve_index]
 
+    # Add Keyframe
+    curve.keyframe_points.insert(frame, value)
+    
 
 ### Utility Functions ###
 
@@ -171,30 +187,31 @@ def create_basic_motion_keyframes(slice, source_emitter):
 def create_animated_materials(slice):
     for particle in slice:
         
+        # Create Custom Properties
+        particle[ORB_VISIBILITY] = 0.0
+        particle[CUBE_VISIBILITY] = 0.0
+        particle[CUBE_BRIGHTNESS] = 0.0
+        
         ### Orb Visibility ###
         
         # Generate Orb Visibility Offset
         orb_visibility_offset = randrange(0, ORB_VISIBILITY_VARIATION + 1)
         
         # Set First Orb Visibility Keyframe
-        bpy.context.scene.frame_set(RING_ANIMATION_START + orb_visibility_offset)
-        particle[ORB_VISIBILITY] = 0.0
-        particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
+        frame = RING_ANIMATION_START + orb_visibility_offset
+        insert_indexed_keyframe(particle, 3, "[\"{0}\"]".format(ORB_VISIBILITY), frame, 0.0)
         
         # Set Second Orb Visibility Keyframe
-        bpy.context.scene.frame_set(RING_ANIMATION_START + orb_visibility_offset + (ASSEMBLY_ANIMATION_LENGTH / 10))
-        particle[ORB_VISIBILITY] = 1.0
-        particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
+        frame = RING_ANIMATION_START + orb_visibility_offset + (ASSEMBLY_ANIMATION_LENGTH / 10)
+        insert_indexed_keyframe(particle, 3, "[\"{0}\"]".format(ORB_VISIBILITY), frame, 1.0)
         
         # Set Third Orb Visibility Keyframe
-        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH)
-        particle[ORB_VISIBILITY] = 1.0
-        particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
+        frame = RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH
+        insert_indexed_keyframe(particle, 3, "[\"{0}\"]".format(ORB_VISIBILITY), frame, 1.0)
         
         # Set Fourth Orb Visibility Keyframe
-        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + ORB_VISIBILITY_TRANSITION_LENGTH)
-        particle[ORB_VISIBILITY] = 0.0
-        particle.keyframe_insert(data_path="[\"{0}\"]".format(ORB_VISIBILITY))
+        frame = RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + ORB_VISIBILITY_TRANSITION_LENGTH
+        insert_indexed_keyframe(particle, 3, "[\"{0}\"]".format(ORB_VISIBILITY), frame, 0.0)
         
         # Duplicate Material For Object (Necessary to Create Material Driver)
         newMaterial = particle.material_slots[ORB_MATERIAL_SLOT_NAME].material.copy()
@@ -212,14 +229,12 @@ def create_animated_materials(slice):
         ### Cube Visibility ###
         
         # Set Initial Cube Visibility Keyframe
-        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH)
-        particle[CUBE_VISIBILITY] = 0.0
-        particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_VISIBILITY))
+        frame = RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH
+        insert_indexed_keyframe(particle, 4, "[\"{0}\"]".format(CUBE_VISIBILITY), frame, 0.0)
         
         # Set Final Cube Visibility Keyframe
-        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH)
-        particle[CUBE_VISIBILITY] = 1.0
-        particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_VISIBILITY))
+        frame = RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
+        insert_indexed_keyframe(particle, 4, "[\"{0}\"]".format(CUBE_VISIBILITY), frame, 1.0)
         
         # Duplicate Material For Object (Necessary to Create Material Driver)
         newMaterial = particle.material_slots[CUBE_MATERIAL_SLOT_NAME].material.copy()
@@ -237,14 +252,12 @@ def create_animated_materials(slice):
         ### Cube Brightness ###
         
         # Set Initial Cube Brightness Keyframe
-        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH)
-        particle[CUBE_BRIGHTNESS] = 18.0
-        particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_BRIGHTNESS))
+        frame = RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
+        insert_indexed_keyframe(particle, 5, "[\"{0}\"]".format(CUBE_BRIGHTNESS), frame, 18.0)
         
         # Set Final Cube Brightness Keyframe
-        bpy.context.scene.frame_set(RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH + CUBE_BRIGHTNESS_TRANSITION_LENGTH)
-        particle[CUBE_BRIGHTNESS] = 3.0
-        particle.keyframe_insert(data_path="[\"{0}\"]".format(CUBE_BRIGHTNESS))
+        frame = RING_ANIMATION_START + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH + CUBE_BRIGHTNESS_TRANSITION_LENGTH
+        insert_indexed_keyframe(particle, 5, "[\"{0}\"]".format(CUBE_BRIGHTNESS), frame, 3.0)
         
         # Duplicate Material For Object (Necessary to Create Material Driver)
         old_material_name = newMaterial.name
@@ -284,16 +297,15 @@ def randomize_flight_pattern(slice):
         x_position = particle.location.x
         y_position = particle.location.y
         z_position = particle.location.z
-        if not PARTICLE_DRIFT_BEFORE_ASSEMBLY:
-            curves = bpy.data.objects[particle.name].animation_data.action.fcurves
-            for curve_number, curve in enumerate(curves):
-                if curve.data_path == "location":
-                    if curve_number == 0:
-                        x_position = curve.evaluate(frame)
-                    elif curve_number == 1:
-                        y_position = curve.evaluate(frame)
-                    else:
-                        z_position = curve.evaluate(frame)
+        curves = bpy.data.objects[particle.name].animation_data.action.fcurves
+        for curve_number, curve in enumerate(curves):
+            if curve.data_path == "location":
+                if curve_number == 0:
+                    x_position = curve.evaluate(frame)
+                elif curve_number == 1:
+                    y_position = curve.evaluate(frame)
+                else:
+                    z_position = curve.evaluate(frame)
     
         # Insert Keyframe
         insert_location_keyframe(particle, frame, (x_position + x_variation, y_position + y_variation, z_position + z_variation))
@@ -444,7 +456,7 @@ def main():
         
         # Configure New Slice
         create_basic_motion_keyframes(new_slice_particles, source_emitter)
-        #create_animated_materials(new_slice_particles)
+        create_animated_materials(new_slice_particles)
         randomize_flight_pattern(new_slice_particles)
         randomize_keyframe_delay(new_slice_particles)
         offset_animations(new_slice_particles, step_offsets[sample])
@@ -485,6 +497,14 @@ def main():
         object_list.append(empty)
         for particle in new_slice_particles:
             object_list.append(particle)
+            
+    # Update All Object Curves
+    for index, object in enumerate(object_list):
+        if OUTPUT_SLICE_PROGRESS:
+            print("Curves Processed for object {0} of {1}.".format(index + 1, len(object_list)))
+        if object.animation_data is not None:
+            for curve in object.animation_data.action.fcurves:
+                curve.keyframe_points.update()
     
     # Create All Objects
     for index, object in enumerate(object_list):
