@@ -75,8 +75,10 @@ CUBE_MATERIAL_SLOT_NAME = "Cube Material"
 CUBE_VISIBILITY_TRANSITION_LENGTH = 20 # Number of Frames
 CUBE_BRIGHTNESS_TRANSITION_LENGTH = 30 # Number of Frames
 
+RING_SAMPLES = 5 # Number of Slices to Generate (Max of 2048)
+START_SAMPLE = 5 # Number of the First Slice in the Generated Samples
+
 RING_SLICES = 4096
-RING_SAMPLES = 5 # Number of Slices to Generate (Max of (RING_SLICES / 2))
 SLICE_ANGLE = 360 / RING_SLICES
 
 
@@ -417,12 +419,12 @@ def main():
     # Calculate Slice Animation Offsets
     start_animation_length = 107 + ASSEMBLY_ANIMATION_LENGTH + CUBE_VISIBILITY_TRANSITION_LENGTH
     step_offsets = []
-    for sample in range(0, RING_SAMPLES):
+    for sample in range(START_SAMPLE, START_SAMPLE + RING_SAMPLES):
         angle = (180 / (RING_SLICES / 2)) * sample
         step_offsets.append(get_offset_for_slice(angle) - start_animation_length)
     
     # For Each Sample (Number of Slices to Generate)
-    for sample in range(0, RING_SAMPLES):
+    for sample in range(START_SAMPLE, START_SAMPLE + RING_SAMPLES):
     
         # Create New Slice
         new_slice_particles = []
@@ -434,7 +436,7 @@ def main():
         create_animated_materials(new_slice_particles)
         randomize_flight_pattern(new_slice_particles)
         randomize_keyframe_delay(new_slice_particles)
-        offset_animations(new_slice_particles, step_offsets[sample])
+        offset_animations(new_slice_particles, step_offsets[sample - START_SAMPLE])
         ease_keyframes(new_slice_particles)
         remove_easing_on_start_frame(new_slice_particles)
         
@@ -466,7 +468,7 @@ def main():
             
         # Print Update
         if OUTPUT_SLICE_PROGRESS:
-            print("Slice {0} of {1} processed.".format(sample + 1, RING_SAMPLES))
+            print("Slice {0} of {1} processed.".format((sample - START_SAMPLE) + 1, RING_SAMPLES))
             
         # Add Slice to Object List
         object_list.append(empty)
@@ -475,7 +477,7 @@ def main():
             
     # Update All Object Curves
     for index, object in enumerate(object_list):
-        if OUTPUT_SLICE_PROGRESS:
+        if OUTPUT_SLICE_PROGRESS and (index + 1) % 100 == 0:
             print("Curves Processed for object {0} of {1}.".format(index + 1, len(object_list)))
         if object.animation_data is not None:
             for curve in object.animation_data.action.fcurves:
@@ -483,7 +485,7 @@ def main():
     
     # Create All Objects
     for index, object in enumerate(object_list):
-        if OUTPUT_SLICE_PROGRESS:
+        if OUTPUT_SLICE_PROGRESS and (index + 1) % 100 == 0:
             print("Object {0} of {1} added to scene.".format(index + 1, len(object_list)))
         bpy.context.collection.objects.link(object)
         hide_object(object)
